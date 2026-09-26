@@ -6,7 +6,8 @@ Python 3.9+，macOS/Linux 为首轮开发验证环境。Windows 可用性和 Doc
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[dev,documents,browser,secure-keys]'
+python -m playwright install chromium
 python -m pytest -q
 python -m build
 ```
