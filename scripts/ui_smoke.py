@@ -122,6 +122,40 @@ try:
         page.locator('#close-files').click(); page.wait_for_timeout(200)
         page.goto(base + '/'); page.wait_for_timeout(1200)
         check('面板收起状态被记住', page.locator('#artifacts').is_hidden())
+
+        # ===== R4 工作台 =====
+        page.locator('#files-button').click(); page.wait_for_timeout(300)
+        page.locator('#tab-work').click(); page.wait_for_timeout(400)
+        check('工作台页签可见', page.locator('#panel-work').is_visible())
+        check('文件树渲染', page.locator('#file-tree button', has_text='app.py').count() == 1)
+        # 代码页：点击树文件
+        page.locator('#file-tree button', has_text='app.py').click(); page.wait_for_timeout(600)
+        check('工作台代码视图', page.locator('#work-code .code-view').count() == 1)
+        # Diff：注入 file_patch 与 file_write 事件
+        db = sqlite3.connect(os.path.join(HOME, 'sessions.sqlite3'))
+        db.execute("INSERT INTO events(session_id,run_id,kind,data,created) VALUES(?,?,?,?,?)",
+                   (sid, None, 'tool.started', json.dumps({'action_id': 'p1', 'name': 'file_patch', 'arguments': {'path': 'app.py', 'old': 'def main():', 'new': 'def main():\n    # 加速', 'expected_sha256': 'x'}}), _t.time()))
+        db.execute("INSERT INTO events(session_id,run_id,kind,data,created) VALUES(?,?,?,?,?)",
+                   (sid, None, 'tool.finished', json.dumps({'action_id': 'p1', 'result': {'ok': True}}), _t.time()))
+        db.execute("INSERT INTO events(session_id,run_id,kind,data,created) VALUES(?,?,?,?,?)",
+                   (sid, None, 'tool.started', json.dumps({'action_id': 'c1', 'name': 'command_run', 'arguments': {'argv': ['python', 'app.py']}}), _t.time()))
+        db.execute("INSERT INTO events(session_id,run_id,kind,data,created) VALUES(?,?,?,?,?)",
+                   (sid, None, 'tool.finished', json.dumps({'action_id': 'c1', 'result': {'ok': True, 'exit_code': 0, 'stdout': '42\n', 'stderr': '', 'timed_out': False}}), _t.time()))
+        db.commit(); db.close()
+        page.wait_for_timeout(1800)
+        page.locator('.work-tabs [data-wtab="diff"]').click(); page.wait_for_timeout(300)
+        check('Diff 卡片出现', page.locator('.diff-card').count() >= 1)
+        check('Diff 红行', page.locator('.diff-del').count() >= 1)
+        check('Diff 绿行', page.locator('.diff-add').count() >= 1)
+        page.locator('.work-tabs [data-wtab="term"]').click(); page.wait_for_timeout(300)
+        check('终端命令显示', '$ python app.py' in page.locator('#work-term').inner_text())
+        check('终端 stdout', '42' in page.locator('.term-out').inner_text())
+        check('终端退出码', page.locator('.term-ok').count() == 1)
+        page.locator('.work-tabs [data-wtab="log"]').click(); page.wait_for_timeout(300)
+        check('运行记录行', page.locator('.log-row').count() >= 3)
+        # 页签记忆
+        page.goto(base + '/'); page.wait_for_timeout(1200)
+        check('工作台页签被记住', page.locator('#panel-work').is_visible())
         browser.close()
 finally:
     proc.terminate(); proc.wait(timeout=5)

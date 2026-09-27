@@ -82,3 +82,52 @@ body.chat-mode .workarea{gap:0}
 .doc-view{flex:1;overflow:auto;padding:26px 34px;background:#fff;line-height:1.85;font-size:15px}
 .doc-view h3{font-size:19px;margin:20px 0 10px}
 .doc-view table{font-size:14px}
+
+/* ===== v0.3 R4 工作台 ===== */
+/* 面板页签（预览｜工作台） */
+.panel-tabs{display:flex;background:var(--bg);border-radius:999px;padding:3px;gap:2px}
+.panel-tabs button{border:0;background:transparent;font-size:14px;font-weight:650;padding:6px 14px;border-radius:999px;color:#62647a;white-space:nowrap}
+.panel-tabs button.selected{background:#fff;color:var(--brand);box-shadow:0 1px 4px #2e235214}
+/* 工作台布局：左树右页 */
+#panel-work{flex:1;display:flex;min-height:0;border-top:1px solid var(--line)}
+#file-tree{width:220px;flex-shrink:0;overflow:auto;padding:10px 6px;border-right:1px solid var(--line);background:#fbfbfe}
+#file-tree details{margin:0}
+#file-tree summary{cursor:pointer;font-size:14px;padding:5px 8px;border-radius:8px;list-style:none;color:var(--text)}
+#file-tree summary:hover{background:#efedff}
+#file-tree button{display:block;width:100%;text-align:left;border:0;background:transparent;font-size:14px;padding:5px 8px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#file-tree button:hover{background:#efedff}
+#file-tree button.selected{background:var(--soft);color:var(--brand);font-weight:650}
+.tree-empty{padding:18px 12px;color:#62647a;font-size:14px;line-height:1.7}
+#work-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.work-tabs{display:flex;gap:4px;padding:10px 14px 8px;border-bottom:1px solid var(--line)}
+.work-tabs button{border:0;background:transparent;font-size:14px;padding:7px 14px;border-radius:999px;color:#62647a}
+.work-tabs button.selected{background:var(--soft);color:var(--brand);font-weight:700}
+.work-page{flex:1;overflow:auto;min-height:0;display:flex;flex-direction:column}
+.work-page[hidden]{display:none}
+.work-page>img{max-width:100%;max-height:100%;object-fit:contain;margin:auto}
+.work-page>.empty,.work-page .empty{margin:auto;text-align:center;padding:36px;color:#62647a;line-height:1.8}
+.work-page .code-view{flex:1}
+/* Diff 红绿对照 */
+.diff-card{margin:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.diff-card>summary{cursor:pointer;font-size:14px;font-weight:650;padding:11px 14px;list-style:none}
+.diff-card>summary:hover{color:var(--brand)}
+.diff-body{border-top:1px solid var(--line);padding:8px 0;font:14px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;max-height:420px}
+.diff-add{background:#e9f7ef;color:#14663a;white-space:pre-wrap;overflow-wrap:anywhere;padding:0 14px}
+.diff-del{background:#fdecef;color:#9c2b3f;white-space:pre-wrap;overflow-wrap:anywhere;padding:0 14px;text-decoration:line-through}
+.diff-dim{color:#8a8ba1;font-size:13px;padding:4px 14px;font-family:inherit}
+/* 终端面板 */
+#work-term{background:#232135;padding:12px;gap:10px}
+.term-block{border-radius:10px;background:#2c2942;padding:10px 12px;margin:0 0 10px}
+.term-cmd{color:#9fe8c0;font:14px/1.6 ui-monospace,Menlo,monospace;overflow-wrap:anywhere;margin-bottom:6px}
+.term-out,.term-err{font:13px/1.65 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0;color:#d9d7ea;max-height:300px;overflow:auto}
+.term-err{color:#f2a9b8}
+.term-dim{color:#8a87a5;font-size:13px}
+.term-ok{color:#6fd6a2;font-size:13px;margin-top:6px}
+.term-bad{color:#f28ba0;font-size:13px;margin-top:6px}
+/* 运行记录 */
+.log-row{padding:10px 16px;border-bottom:1px solid #f0eef6}
+.log-title{font-size:14px}
+.log-row details{margin-top:4px}
+.log-row summary{cursor:pointer;color:#62647a;font-size:13px}
+.log-row pre{overflow:auto;max-height:220px;white-space:pre-wrap;overflow-wrap:anywhere;background:#f8f7fc;padding:10px;border-radius:8px;font-size:13px}
+@media(max-width:930px){#file-tree{width:170px}}

@@ -86,19 +86,23 @@ function renderMessages(messages){
   }
   if(nearBottom||messages.length<=2)$('chat-scroll').scrollTop=$('chat-scroll').scrollHeight;
 }
+function eventTitle(e){
+  let title=e.kind;
+  if(e.kind==='tool.started')title=toolLabels[e.data.name]||e.data.name;
+  else if(e.kind==='tool.finished')title=e.data.result.ok?'工具返回结果':'工具返回错误';
+  else if(e.kind.startsWith('run.'))title=labels[e.kind.slice(4)]||e.kind;
+  else if(e.kind==='approval.requested')title='等待批准：'+e.data.tool;
+  else if(e.kind==='approval.decided')title=e.data.approved?'已批准操作':'已拒绝操作';
+  else if(e.kind==='permission.changed')title='授权更新：'+modes[e.data.mode];
+  else if(e.kind==='usage.estimated')title='服务商未返回用量，本轮使用估算控制预算';
+  else if(e.kind==='media.request')title='发起第 '+e.data.attempt+' 次生图调用';
+  return title;
+}
 function drawEvents(){
   $('events').replaceChildren();const visible=events.filter(e=>/^(tool\.|run\.|approval\.|permission\.|usage\.|media\.|recovery\.)/.test(e.kind));
   $('event-count').textContent=visible.length?visible.length+' 条记录':'查看工作记录';
   for(const e of visible.slice(-80)){
-    const li=el('li');let title=e.kind;
-    if(e.kind==='tool.started')title=toolLabels[e.data.name]||e.data.name;
-    else if(e.kind==='tool.finished')title=e.data.result.ok?'工具返回结果':'工具返回错误';
-    else if(e.kind.startsWith('run.'))title=labels[e.kind.slice(4)]||e.kind;
-    else if(e.kind==='approval.requested')title='等待批准：'+e.data.tool;
-    else if(e.kind==='approval.decided')title=e.data.approved?'已批准操作':'已拒绝操作';
-    else if(e.kind==='permission.changed')title='授权更新：'+modes[e.data.mode];
-    else if(e.kind==='usage.estimated')title='服务商未返回用量，本轮使用估算控制预算';
-    else if(e.kind==='media.request')title='发起第 '+e.data.attempt+' 次生图调用';
+    const li=el('li');let title=eventTitle(e);
     li.append(el('span',title));const d=el('details');d.append(el('summary','详情'),el('pre',JSON.stringify(e.data,null,2)));li.append(d);$('events').append(li);
   }
 }
@@ -122,9 +126,10 @@ async function loadSession(){
     $('usage').textContent=running&&running.tokens?'本轮 '+running.tokens.toLocaleString()+' token':'';
     renderMessages(data.messages);drawApprovals(data.approvals);
     if(data.events.length){events.push(...data.events);cursor=data.events.at(-1).seq;drawEvents();
-      if(data.events.some(e=>e.kind==='tool.finished'&&e.data.result?.ok&&['file_write','file_patch','document_create','image_generate'].includes(toolName(e))))hotReload();}
+      if(data.events.some(e=>e.kind==='tool.finished'&&e.data.result?.ok&&['file_write','file_patch','document_create','image_generate'].includes(toolName(e))))hotReload();
+      if(panelTab==='work'){drawDiff();drawTerm();drawLog();}}
     const signature=JSON.stringify(data.files);$('file-count').textContent=data.files.length+' 个文件';$('files-button').hidden=!current;$('files-button').textContent='项目文件'+(data.files.length?' · '+data.files.length:'');
-    if(signature!==latestFiles){latestFiles=signature;drawFiles(data.files);}if(!data.files.length&&!selectedFile)$('preview').replaceChildren(el('div',permission.read?'项目中还没有文件。授权制作后，生成的作品会出现在这里。':'查看本项目文件需要只读授权。','empty'));
+    if(signature!==latestFiles){latestFiles=signature;drawFiles(data.files);workFiles=data.files;if(panelTab==='work')drawTree(data.files);}if(!data.files.length&&!selectedFile)$('preview').replaceChildren(el('div',permission.read?'项目中还没有文件。授权制作后，生成的作品会出现在这里。':'查看本项目文件需要只读授权。','empty'));
     if(!selectedFile&&panelOpen&&data.files.length){const saved=localStorage.getItem('lebot-file-'+sid);if(saved&&data.files.includes(saved))openFile(saved);}
     $('live').hidden=!isActive()||!!data.approvals.length;
     const latest=events.filter(e=>e.run_id===running?.id).at(-1),tool=latest?.kind==='tool.started'?latest.data.name:null;
@@ -153,7 +158,7 @@ function resetPreview(){selectedFile='';fileContent='';previewUrl='';if(previewB
 async function selectSession(id){
   if(id===current)return;current=id;localStorage.setItem('lebot-session',id);events=[];cursor=0;lastMessages='';latestFiles='';lastApprovals='';running=null;permission={mode:'plan'};
   const meta=state.sessions.find(s=>s.id===id);uiMode=meta?.kind==='chat'?'chat':'work';applyMode();
-  sessionData=null;showFiles(localStorage.getItem('lebot-panel')==='1');autoPreviewed='';resetPreview();$('activity').open=false;$('approvals').replaceChildren();$('run-error').hidden=true;$('next-action').hidden=true;$('convert-bar').hidden=true;notify('');drawState();renderPermission();await loadSession();
+  sessionData=null;showFiles(localStorage.getItem('lebot-panel')==='1');autoPreviewed='';resetPreview();workFile='';workFiles=[];if(workBlob){URL.revokeObjectURL(workBlob);workBlob='';}$('work-code').replaceChildren();$('activity').open=false;$('approvals').replaceChildren();$('run-error').hidden=true;$('next-action').hidden=true;$('convert-bar').hidden=true;notify('');drawState();renderPermission();await loadSession();
 }
 async function newChat(){
   current=null;localStorage.removeItem('lebot-session');events=[];cursor=0;lastMessages='';latestFiles='';lastApprovals='';running=null;permission={mode:'plan'};sessionData=null;
@@ -235,6 +240,104 @@ function hotReload(){
   if(/\.html?$/i.test(selectedFile)&&!sourceMode){const f=$('preview').querySelector('iframe');if(f)f.src=f.src;}
   else openFile(selectedFile);
 }
+
+/* ===== 工作台（R4）：文件树 / 代码 / Diff / 终端 / 运行记录 ===== */
+let panelTab='preview',workFile='',workFiles=[],workBlob='';
+function setPanelTab(tab){
+  panelTab=tab;localStorage.setItem('lebot-panel-tab',tab);
+  $('tab-preview').classList.toggle('selected',tab==='preview');$('tab-work').classList.toggle('selected',tab==='work');
+  $('tab-preview').setAttribute('aria-selected',tab==='preview'?'true':'false');$('tab-work').setAttribute('aria-selected',tab==='work'?'true':'false');
+  $('panel-preview').hidden=tab!=='preview';$('panel-work').hidden=tab!=='work';
+  if(tab==='work'){drawTree(workFiles);drawDiff();drawTerm();drawLog();}
+}
+$('tab-preview').onclick=()=>setPanelTab('preview');
+$('tab-work').onclick=()=>setPanelTab('work');
+function setWtab(name){
+  for(const b of document.querySelectorAll('.work-tabs button'))b.classList.toggle('selected',b.dataset.wtab===name);
+  for(const p of document.querySelectorAll('.work-page'))p.hidden=p.id!=='work-'+name;
+}
+for(const b of document.querySelectorAll('.work-tabs button'))b.onclick=()=>setWtab(b.dataset.wtab);
+
+const TREE_ICON={html:'🌐',htm:'🌐',js:'📜',css:'🎨',py:'🐍',json:'🧾',md:'📝',txt:'📝',csv:'🧾',png:'🖼',jpg:'🖼',jpeg:'🖼',webp:'🖼',gif:'🖼',svg:'🖼',mp3:'🎵',pptx:'📊',docx:'📄',pdf:'📕',zip:'📦'};
+function drawTree(files){
+  const root={dirs:new Map(),files:[]};
+  for(const f of files){const parts=f.split('/');let node=root;
+    for(let i=0;i<parts.length-1;i++){if(!node.dirs.has(parts[i]))node.dirs.set(parts[i],{dirs:new Map(),files:[]});node=node.dirs.get(parts[i]);}
+    node.files.push({name:parts[parts.length-1],path:f});}
+  const box=$('file-tree');box.replaceChildren();
+  if(!files.length){box.append(el('div','项目中还没有文件。','tree-empty'));return;}
+  const addNode=(parent,node,depth)=>{
+    for(const [name,dir] of [...node.dirs.entries()].sort((a,b)=>a[0].localeCompare(b[0]))){
+      const d=el('details');d.open=depth<1;const s=el('summary','📁 '+name);s.style.paddingLeft=(8+depth*14)+'px';d.append(s);
+      const inner=el('div');addNode(inner,dir,depth+1);d.append(inner);parent.append(d);}
+    for(const f of node.files.sort((a,b)=>a.name.localeCompare(b.name))){
+      const ext=f.name.includes('.')?f.name.split('.').pop().toLowerCase():'';
+      const b=el('button',(TREE_ICON[ext]||'📄')+' '+f.name,f.path===workFile?'selected':'');
+      b.type='button';b.style.paddingLeft=(8+depth*14+20)+'px';b.title=f.path;b.onclick=()=>openWorkFile(f.path);parent.append(b);}};
+  addNode(box,root,0);
+}
+async function openWorkFile(path){
+  workFile=path;setWtab('code');drawTree(workFiles);
+  const pane=$('work-code');pane.replaceChildren(el('div','正在读取……','empty'));
+  try{
+    if(/\.(png|jpe?g|webp|gif)$/i.test(path)){
+      const blob=await blobFile(path);if(workFile!==path)return;
+      if(workBlob)URL.revokeObjectURL(workBlob);workBlob=URL.createObjectURL(blob);
+      const im=el('img');im.src=workBlob;im.alt=path;pane.replaceChildren(im);return;}
+    if(/\.(pptx|docx|pdf|zip|mp3|wav|xlsx)$/i.test(path)){pane.replaceChildren(el('div','二进制文件：请切到「预览」页签下载，或用对应应用打开。','empty'));return;}
+    const r=await api('file?'+fileQuery(path));if(workFile!==path)return;
+    pane.replaceChildren(codeView(r.content,path));
+  }catch(e){pane.replaceChildren(el('div',e.message,'empty'));}
+}
+function diffLine(sign,text){const row=el('div',null,sign==='+'?'diff-add':'diff-del');row.textContent=sign+' '+text;return row;}
+function drawDiff(){
+  const pane=$('work-diff');pane.replaceChildren();
+  const patches=events.filter(e=>e.kind==='tool.started'&&(e.data.name==='file_patch'||e.data.name==='file_write')&&e.data.arguments?.path);
+  if(!patches.length){pane.append(el('div','还没有文件修改记录；小博开始制作后，这里会显示每处改动。','empty'));return;}
+  patches.slice().reverse().forEach((e,i)=>{
+    const a=e.data.arguments,card=el('details',null,'diff-card');card.open=i===0;
+    card.append(el('summary',(e.data.name==='file_patch'?'✏️ 修改  ':'📄 新建  ')+a.path));
+    const body=el('div',null,'diff-body');
+    if(e.data.name==='file_write'){
+      for(const line of String(a.content??'').split('\n').slice(0,300))body.append(diffLine('+',line));
+      if(String(a.content??'').split('\n').length>300)body.append(el('div','…… 内容较长，其余从略。','diff-dim'));
+    }else{
+      body.append(el('div','修改前：','diff-dim'));
+      for(const line of String(a.old??'').split('\n').slice(0,120))body.append(diffLine('-',line));
+      body.append(el('div','修改后：','diff-dim'));
+      for(const line of String(a.new??'').split('\n').slice(0,120))body.append(diffLine('+',line));
+    }
+    card.append(body);pane.append(card);
+  });
+}
+function drawTerm(){
+  const pane=$('work-term');pane.replaceChildren();
+  const runs=events.filter(e=>e.kind==='tool.started'&&e.data.name==='command_run');
+  if(!runs.length){pane.append(el('div','还没有运行过命令；小博检查作品、安装依赖时，输出会显示在这里。','empty'));return;}
+  for(const s of runs){
+    const fin=events.find(e=>e.kind==='tool.finished'&&e.data.action_id===s.data.action_id);
+    const block=el('div',null,'term-block');
+    block.append(el('div','$ '+(s.data.arguments?.argv||[]).join(' '),'term-cmd'));
+    const r=fin?.data.result;
+    if(!fin)block.append(el('div','（等待结果……）','term-dim'));
+    else{
+      const trim=t=>{const lines=String(t).split('\n');return lines.length>200?'……（前面从略）\n'+lines.slice(-200).join('\n'):String(t);};
+      if(r.stdout)block.append(el('pre',trim(r.stdout),'term-out'));
+      if(r.stderr)block.append(el('pre',trim(r.stderr),'term-err'));
+      block.append(el('div','退出码 '+r.exit_code+(r.timed_out?' · 已超时':''),r.exit_code===0?'term-ok':'term-bad'));}
+    pane.append(block);}
+  pane.scrollTop=pane.scrollHeight;
+}
+function drawLog(){
+  const pane=$('work-log');pane.replaceChildren();
+  const visible=events.filter(e=>/^(tool\.|run\.|approval\.|permission\.|usage\.|media\.|recovery\.)/.test(e.kind));
+  if(!visible.length){pane.append(el('div','还没有运行记录。','empty'));return;}
+  for(const e of visible.slice(-100)){
+    const row=el('div',null,'log-row');
+    row.append(el('span',eventTitle(e),'log-title'));
+    const d=el('details');d.append(el('summary','详情'),el('pre',JSON.stringify(e.data,null,2)));row.append(d);
+    pane.append(row);}
+}
 $('download-project').onclick=async()=>{try{const r=await fetch('/api/project.zip?session='+encodeURIComponent(current),{headers:{'X-Lebot-Token':token}});if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=el('a');a.href=url;a.download=(sessionData.session.title||'项目')+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);notify('项目已打包下载，包含网页与图片等资源。');}catch(e){notify(e.message);}};
 $('preview-toggle').onclick=async()=>{try{if(!sourceMode)fileContent=(await api('file?'+fileQuery(selectedFile))).content;sourceMode=!sourceMode;renderPreview();}catch(e){notify(e.message);}};
 $('download').onclick=async()=>{try{const blob=await blobFile(selectedFile),url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=selectedFile.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}catch(e){notify(e.message);}};
@@ -314,4 +417,4 @@ $('record').onclick=async()=>{
   try{stream=await navigator.mediaDevices.getUserMedia({audio:true});recorder=new MediaRecorder(stream);const chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=async()=>{clearTimeout(recordTimer);stream.getTracks().forEach(t=>t.stop());$('record').disabled=true;$('record').textContent='识别中…';try{const blob=new Blob(chunks,{type:recorder.mimeType});if(blob.size>4000000)throw Error('录音超过 4 MB，请缩短录音。');const data=await asDataURL(blob),r=await api('audio/transcribe',{audio:data.split(',')[1],mime:recorder.mimeType.split(';')[0]});$('prompt').value+=($('prompt').value?'\n':'')+r.text;$('prompt').focus();notify('语音已转成文字，请检查后发送。');}catch(e){notify(e.message);}finally{$('record').disabled=false;$('record').textContent='语音输入';}};recorder.start();$('record').textContent='结束录音';recordTimer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop();},90000);}catch(e){stream?.getTracks().forEach(t=>t.stop());notify('无法开始录音：'+e.message);}
 };
 async function speak(text,button){button.disabled=true;try{if(text.length>4000)notify('本次播报前 4000 字。');const data=await api('audio/speech',{text:text.slice(0,4000)}),bytes=Uint8Array.from(atob(data.audio),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:data.mime})),audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);audio.onerror=()=>URL.revokeObjectURL(url);await audio.play();}catch(e){notify(e.message);}finally{button.disabled=false;}}
-(async()=>{try{const r=await fetch('/api/bootstrap');state=await r.json();if(!state.token)throw Error('无法连接本机运行时。');token=state.token;drawState();const saved=localStorage.getItem('lebot-session');if(state.sessions.some(s=>s.id===saved))await selectSession(saved);else if(state.sessions.length)await selectSession(state.sessions[0].id);applyMode();if(!modelReady())openModels();updateComposer();setInterval(loadSession,1000);}catch(e){notify(e.message);}})();
+(async()=>{try{const r=await fetch('/api/bootstrap');state=await r.json();if(!state.token)throw Error('无法连接本机运行时。');token=state.token;drawState();const saved=localStorage.getItem('lebot-session');if(state.sessions.some(s=>s.id===saved))await selectSession(saved);else if(state.sessions.length)await selectSession(state.sessions[0].id);applyMode();setPanelTab(localStorage.getItem('lebot-panel-tab')||'preview');if(!modelReady())openModels();updateComposer();setInterval(loadSession,1000);}catch(e){notify(e.message);}})();
