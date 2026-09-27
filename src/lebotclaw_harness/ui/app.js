@@ -11,7 +11,7 @@ const toolLabels={files_list:'查看项目文件',file_read:'读取文件',file_
 function activeModel(){return running?.model||state.active_model;}
 function modelReady(){return !!state.model_health?.[activeModel()]?.ready;}
 function isActive(){return !!running&&['running','queued'].includes(running.status);}
-function showFiles(show=true){if(uiMode==='chat')show=false;panelOpen=show;$('artifacts').hidden=!show;$('workarea').classList.toggle('with-files',show);}
+function showFiles(show=true){if(uiMode==='chat')show=false;panelOpen=show;localStorage.setItem('lebot-panel',show?'1':'0');$('artifacts').hidden=!show;$('workarea').classList.toggle('with-files',show);}
 function applyMode(){
   document.body.classList.toggle('chat-mode',uiMode==='chat');
   $('mode-chat').classList.toggle('selected',uiMode==='chat');
@@ -121,9 +121,11 @@ async function loadSession(){
     $('run-status').textContent=data.approvals.length?'等待批准':running?(labels[running.status]||running.status):'准备开始';
     $('usage').textContent=running&&running.tokens?'本轮 '+running.tokens.toLocaleString()+' token':'';
     renderMessages(data.messages);drawApprovals(data.approvals);
-    if(data.events.length){events.push(...data.events);cursor=data.events.at(-1).seq;drawEvents();}
+    if(data.events.length){events.push(...data.events);cursor=data.events.at(-1).seq;drawEvents();
+      if(data.events.some(e=>e.kind==='tool.finished'&&e.data.result?.ok&&['file_write','file_patch','document_create','image_generate'].includes(toolName(e))))hotReload();}
     const signature=JSON.stringify(data.files);$('file-count').textContent=data.files.length+' 个文件';$('files-button').hidden=!current;$('files-button').textContent='项目文件'+(data.files.length?' · '+data.files.length:'');
     if(signature!==latestFiles){latestFiles=signature;drawFiles(data.files);}if(!data.files.length&&!selectedFile)$('preview').replaceChildren(el('div',permission.read?'项目中还没有文件。授权制作后，生成的作品会出现在这里。':'查看本项目文件需要只读授权。','empty'));
+    if(!selectedFile&&panelOpen&&data.files.length){const saved=localStorage.getItem('lebot-file-'+sid);if(saved&&data.files.includes(saved))openFile(saved);}
     $('live').hidden=!isActive()||!!data.approvals.length;
     const latest=events.filter(e=>e.run_id===running?.id).at(-1),tool=latest?.kind==='tool.started'?latest.data.name:null;
     $('live-status').textContent=tool?(toolLabels[tool]||tool)+'…':data.live?.text?'正在回复…':'正在思考…';
@@ -147,11 +149,11 @@ function renderNextAction(data){
   if(!action)return;node.hidden=false;$('next-heading').textContent=title;$('next-description').textContent=desc;$('next-button').textContent=label;$('next-button').onclick=action;
 }
 function drawFiles(files){$('files').replaceChildren();for(const f of files){const b=el('button',f,f===selectedFile?'selected':'');b.title=f;b.onclick=()=>openFile(f);$('files').append(b);}}
-function resetPreview(){selectedFile='';fileContent='';previewUrl='';if(previewBlob)URL.revokeObjectURL(previewBlob);previewBlob='';$('preview').replaceChildren(el('div','选择项目文件，查看内容或运行作品。','empty'));$('filename').textContent='作品预览';$('preview-toggle').hidden=true;$('open-preview').hidden=true;$('download').hidden=true;}
+function resetPreview(){selectedFile='';fileContent='';previewUrl='';if(previewBlob)URL.revokeObjectURL(previewBlob);previewBlob='';$('preview').replaceChildren(el('div','选择项目文件，查看内容或运行作品。','empty'));$('filename').textContent='作品预览';$('preview-toggle').hidden=true;$('open-preview').hidden=true;$('device-switch').hidden=true;$('download').hidden=true;}
 async function selectSession(id){
   if(id===current)return;current=id;localStorage.setItem('lebot-session',id);events=[];cursor=0;lastMessages='';latestFiles='';lastApprovals='';running=null;permission={mode:'plan'};
   const meta=state.sessions.find(s=>s.id===id);uiMode=meta?.kind==='chat'?'chat':'work';applyMode();
-  sessionData=null;showFiles(false);autoPreviewed='';resetPreview();$('activity').open=false;$('approvals').replaceChildren();$('run-error').hidden=true;$('next-action').hidden=true;$('convert-bar').hidden=true;notify('');drawState();renderPermission();await loadSession();
+  sessionData=null;showFiles(localStorage.getItem('lebot-panel')==='1');autoPreviewed='';resetPreview();$('activity').open=false;$('approvals').replaceChildren();$('run-error').hidden=true;$('next-action').hidden=true;$('convert-bar').hidden=true;notify('');drawState();renderPermission();await loadSession();
 }
 async function newChat(){
   current=null;localStorage.removeItem('lebot-session');events=[];cursor=0;lastMessages='';latestFiles='';lastApprovals='';running=null;permission={mode:'plan'};sessionData=null;
@@ -171,7 +173,7 @@ function setMode(mode){
 $('mode-chat').onclick=()=>setMode('chat');
 $('mode-work').onclick=()=>setMode('work');
 async function openFile(file){
-  showFiles(true);selectedFile=file;sourceMode=false;$('open-preview').hidden=true;const sid=current;$('filename').textContent=file;$('download').hidden=false;$('preview').replaceChildren(el('div','正在读取作品……','empty'));
+  showFiles(true);selectedFile=file;sourceMode=false;$('open-preview').hidden=true;$('device-switch').hidden=true;const sid=current;localStorage.setItem('lebot-file-'+sid,file);$('filename').textContent=file;$('download').hidden=false;$('preview').replaceChildren(el('div','正在读取作品……','empty'));
   try{
     if(/\.html?$/i.test(file)){const result=await api('preview?'+fileQuery(file));if(current!==sid||selectedFile!==file)return;previewUrl=result.url;fileContent='';renderPreview();}
     else if(/\.(png|jpe?g|webp|gif)$/i.test(file)){const blob=await blobFile(file);if(current!==sid||selectedFile!==file)return;if(previewBlob)URL.revokeObjectURL(previewBlob);previewBlob=URL.createObjectURL(blob);const im=el('img');im.src=previewBlob;im.alt=file;$('preview').replaceChildren(im);$('preview-toggle').hidden=true;}
@@ -181,9 +183,57 @@ async function openFile(file){
   }catch(e){notify(e.message);$('preview').replaceChildren(el('div',e.message,'empty'));}
 }
 function renderPreview(){
-  const html=/\.html?$/i.test(selectedFile);$('preview-toggle').hidden=!html;$('open-preview').hidden=!html;$('open-preview').href=previewUrl;$('preview-toggle').textContent=sourceMode?'运行作品':'查看源文件';$('preview').replaceChildren();
-  if(!html||sourceMode){$('preview').append(el('pre',fileContent));return;}
-  const frame=el('iframe');frame.title='项目作品预览';frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-downloads allow-modals');frame.referrerPolicy='no-referrer';frame.src=previewUrl;$('preview').append(frame);
+  const html=/\.html?$/i.test(selectedFile),md=/\.(md|markdown)$/i.test(selectedFile);
+  $('preview-toggle').hidden=!(html||md);$('open-preview').hidden=!html;$('open-preview').href=previewUrl;
+  $('preview-toggle').textContent=html?(sourceMode?'运行作品':'查看源文件'):(sourceMode?'渲染视图':'查看源文件');
+  $('device-switch').hidden=!(html&&!sourceMode);
+  $('preview').replaceChildren();
+  if(md&&!sourceMode){const view=markdown(fileContent);view.classList.add('doc-view');$('preview').append(view);return;}
+  if(!html||sourceMode){$('preview').append(codeView(fileContent,selectedFile));return;}
+  const wrap=el('div',null,'frame-wrap dev-'+deviceFrame);
+  const frame=el('iframe');frame.title='项目作品预览';frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-downloads allow-modals');frame.referrerPolicy='no-referrer';frame.src=previewUrl;
+  wrap.append(frame);$('preview').append(wrap);
+}
+let deviceFrame='desktop';
+for(const b of document.querySelectorAll('#device-switch button'))b.onclick=()=>{deviceFrame=b.dataset.dev;for(const x of document.querySelectorAll('#device-switch button'))x.classList.toggle('selected',x===b);const w=$('preview').querySelector('.frame-wrap');if(w)w.className='frame-wrap dev-'+deviceFrame;};
+
+/* 轻量代码视图：行号 + 语法高亮（无外部依赖，符合 CSP self 限制） */
+const CODE_KEYWORDS={js:'const let var function return if else for while class new async await import export from try catch throw typeof of in switch case break continue this null true false undefined',py:'def return if elif else for while class import from as try except raise with lambda pass break continue True False None and or not in is global nonlocal yield assert async await',css:'import media supports keyframes font-face important'};
+const CODE_ALIAS={mjs:'js',ts:'js',jsx:'js',tsx:'js',vue:'js',java:'js',c:'js',cpp:'js',h:'js',yml:'py',yaml:'py',toml:'py',ini:'py',cfg:'py',sh:'py',bash:'py',zsh:'py',rb:'py',lua:'py',pl:'py'};
+function highlightLine(line,ext){
+  ext=CODE_ALIAS[ext]||ext;
+  const words=CODE_KEYWORDS[ext],frag=document.createDocumentFragment();let rest=line,guard=0;
+  const pat=ext==='py'?/^#[^\n]*/:ext==='html'?/^<!--[^\n]*/:/^\/\/[^\n]*/;
+  while(rest&&guard++<60){
+    const comment=rest.match(pat),str=rest.match(/^('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/),num=rest.match(/^\d+(?:\.\d+)?\b/),word=rest.match(/^[A-Za-z_$][\w$]*/),tag=ext==='html'&&rest.match(/^<\/?[a-zA-Z][\w-]*|^\/?>/);
+    let node=null,eat=0;
+    if(comment&&comment[0]){node=el('span',comment[0],'tok-com');eat=comment[0].length;}
+    else if(str){node=el('span',str[0],'tok-str');eat=str[0].length;}
+    else if(tag){node=el('span',tag[0],'tok-kw');eat=tag[0].length;}
+    else if(num){node=el('span',num[0],'tok-num');eat=num[0].length;}
+    else if(word){node=el('span',word[0],words&&new RegExp('\\b'+word[0].replace(/\$/g,'\\$')+'\\b').test(words)?'tok-kw':null);eat=word[0].length;}
+    else{node=document.createTextNode(rest[0]);eat=1;}
+    frag.append(node);rest=rest.slice(eat);
+  }
+  if(rest)frag.append(document.createTextNode(rest));
+  return frag;
+}
+function codeView(text,file){
+  const ext=(file.split('.').pop()||'').toLowerCase(),box=el('div',null,'code-view'),lines=text.split('\n');
+  const shown=lines.slice(0,4000);
+  for(let i=0;i<shown.length;i++){
+    const row=el('div',null,'code-line');
+    row.append(el('span',String(i+1),'ln'));
+    const lc=el('span',null,'lc');lc.append(highlightLine(shown[i],ext));row.append(lc);box.append(row);
+  }
+  if(lines.length>shown.length)box.append(el('div','…… 其余 '+(lines.length-shown.length)+' 行从略，请下载查看完整文件。','code-more'));
+  return box;
+}
+function toolName(e){if(e.kind==='tool.started')return e.data.name;return events.find(x=>x.kind==='tool.started'&&x.data.action_id===e.data.action_id)?.data.name;}
+function hotReload(){
+  if(!selectedFile||!panelOpen)return;
+  if(/\.html?$/i.test(selectedFile)&&!sourceMode){const f=$('preview').querySelector('iframe');if(f)f.src=f.src;}
+  else openFile(selectedFile);
 }
 $('download-project').onclick=async()=>{try{const r=await fetch('/api/project.zip?session='+encodeURIComponent(current),{headers:{'X-Lebot-Token':token}});if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=el('a');a.href=url;a.download=(sessionData.session.title||'项目')+'.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);notify('项目已打包下载，包含网页与图片等资源。');}catch(e){notify(e.message);}};
 $('preview-toggle').onclick=async()=>{try{if(!sourceMode)fileContent=(await api('file?'+fileQuery(selectedFile))).content;sourceMode=!sourceMode;renderPreview();}catch(e){notify(e.message);}};
