@@ -11,7 +11,7 @@ requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "LebotClaw contributors"}]
-dependencies = ["httpx>=0.27,<1", "jsonschema>=4.23,<4.26", "filelock>=3.13,<3.20", "Pillow>=10,<12"]
+dependencies = ["httpx>=0.27,<1", "jsonschema>=4.23,<4.26", "filelock>=3.13,<3.20", "Pillow>=10,<12", "pypdf>=5,<6", "python-pptx>=1,<2", "python-docx>=1.1,<2", "keyring>=25,<26"]
 
 [project.urls]
 Repository = "https://github.com/bushushu2333/LebotClaw-Harness"
@@ -19,9 +19,10 @@ Issues = "https://github.com/bushushu2333/LebotClaw-Harness/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "build>=1.2,<2"]
-documents = ["pypdf>=5,<6", "python-pptx>=1,<2", "python-docx>=1.1,<2"]
 browser = ["playwright>=1.58,<1.59"]
-secure-keys = ["keyring>=25,<26"]
+# 兼容别名：documents / secure-keys 自 v0.3 起并入主依赖，此处保留为空 extras，避免旧安装命令报错。
+documents = []
+secure-keys = []
 
 [project.scripts]
 lebotclaw = "lebotclaw_harness.cli:main"

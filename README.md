@@ -107,11 +107,11 @@ lebotclaw web --open
 
 安装选项的含义：
 
-- `documents`：读取 PDF / Office 文档，生成 PPTX / DOCX。
-- `browser`：安装 Playwright，用于检查生成的网页；还需要执行上面的 Chromium 安装命令。
-- `secure-keys`：允许把 Key 保存到受支持的系统凭据库。
+- `documents`：读取 PDF / Office 文档，生成 PPTX / DOCX。**自 v0.3 起已并入默认安装**，无需单独指定（保留别名仅为兼容旧命令）。
+- `browser`：安装 Playwright，用于检查生成的网页；还需要执行上面的 Chromium 安装命令。体积较大，仍为可选项。
+- `secure-keys`：允许把 Key 保存到受支持的系统凭据库。**自 v0.3 起已并入默认安装**，无需单独指定（保留别名仅为兼容旧命令）。
 
-这些是推荐安装项，可以支持下面的完整使用流程。Linux 如提示缺少 Chromium 系统库，可使用 `python -m playwright install --with-deps chromium` 安装所需系统依赖，可能需要系统管理员权限。
+`browser` 是推荐安装项，可以支持下面的完整使用流程。Linux 如提示缺少 Chromium 系统库，可使用 `python -m playwright install --with-deps chromium` 安装所需系统依赖，可能需要系统管理员权限。
 
 ### 2.3 Windows PowerShell
 
@@ -319,7 +319,7 @@ lebotclaw web --port 18868 --open
 | --- | --- | --- |
 | 当前进程内存 | 否 | 适合临时试用，关闭本地服务后需要重新输入 |
 | 环境变量 | 取决于启动环境 | 启动服务的进程必须能读取该变量；在另一个终端设置不一定会生效 |
-| 系统凭据库 | 是，前提是系统凭据后端可用 | 安装 `secure-keys` 并在界面勾选保存 |
+| 系统凭据库 | 是，前提是系统凭据后端可用 | 在界面勾选保存即可（keyring 已随默认安装提供） |
 
 普通 `config.json` 保存模型地址、型号和能力绑定，不保存明文 Key。系统凭据库不可用时会报错，不会静默退回明文文件。已保存凭据绑定配置及接口目标，修改服务商或地址后需要重新确认凭据。
 
@@ -624,7 +624,7 @@ Windows 使用 `.\.venv\Scripts\python.exe` 执行相同的 `-m pip`、`-m playw
 | 连接出现 404 / 响应无法解析 | 检查基础地址和协议，尤其不要混用 Anthropic 与 Chat Completions；不要把 `/chat/completions` 重复写进基础地址 |
 | 能聊天，但工具调用检查不通过 | 确认型号和接口支持工具调用；部分服务只兼容普通聊天 |
 | 重启后模型名称还在，却提示缺少 Key | 上次 Key 只保存在进程内存；重新输入、配置环境变量或选择系统凭据库 |
-| 系统凭据库保存失败 | 确认安装 `secure-keys` 且系统后端可用；可先使用内存或环境变量，不需要写明文密钥文件 |
+| 系统凭据库保存失败 | 确认系统凭据后端可用（keyring 已随默认安装提供）；可先使用内存或环境变量，不需要写明文密钥文件 |
 | 模型只讲方案，不生成文件 | 检查是否仍是 Plan；通过「授权并继续」允许制作，而不是仅在聊天中说“我授权了” |
 | 已配置生图，却没有生成图片 | 检查项目生图授权、次数预算、批准卡片和上游协议；在需求中明确要求生成并使用真实素材 |
 | `browser_check` 提示找不到浏览器 | 在当前虚拟环境执行 `python -m playwright install chromium`；Linux 可能还需系统依赖 |
