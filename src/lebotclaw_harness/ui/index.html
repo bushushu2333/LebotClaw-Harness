@@ -4,11 +4,11 @@
 <aside class="sidebar">
  <a class="brand" href="/"><span class="mark">L</span><span>LebotClaw <b>Harness</b></span></a>
  <button id="new-task" class="wide new-button">＋ 新对话</button>
- <div class="side-label">最近的项目 <span id="task-count">0</span></div><nav id="sessions" aria-label="项目对话"></nav>
- <div class="side-bottom"><button id="settings" class="quiet wide">⚙ 模型与能力</button><p><span class="local-dot"></span> 本地运行 <span class="version">v0.2.1</span></p></div>
+ <div class="side-label">最近的对话 <span id="task-count">0</span></div><nav id="sessions" aria-label="项目对话"></nav>
+ <div class="side-bottom"><button id="settings" class="quiet wide">⚙ 模型与能力</button><p><span class="local-dot"></span> 本地运行 <span class="version">v0.3.0</span></p></div>
 </aside>
 <main>
- <header><button id="mobile-menu" class="quiet" aria-label="打开项目列表">☰</button><div><h1 id="task-title">新对话</h1><span id="project-location" class="header-sub">超级小博 · 你的本地 AI 伙伴</span></div><button id="files-button" class="quiet" hidden>项目文件</button><button id="model-button" class="model-pill">连接模型</button><button id="mobile-new" class="quiet" title="新对话">＋</button></header>
+ <header><button id="mobile-menu" class="quiet" aria-label="打开项目列表">☰</button><div><h1 id="task-title">新对话</h1><span id="project-location" class="header-sub">超级小博 · 你的本地 AI 伙伴</span></div><div class="mode-switch" role="tablist" aria-label="聊天或制作模式"><button id="mode-chat" role="tab" class="selected">💬 聊天</button><button id="mode-work" role="tab">🛠️ 制作</button></div><button id="files-button" class="quiet" hidden>项目文件</button><button id="model-button" class="model-pill">连接模型</button><button id="mobile-new" class="quiet" title="新对话">＋</button></header>
  <div id="notice" role="status" hidden></div>
  <div class="workarea" id="workarea">
  <section class="conversation" aria-label="和超级小博对话">
@@ -20,6 +20,7 @@
   <div id="next-action" class="next-action" hidden><div><b id="next-heading"></b><p id="next-description"></p></div><button id="next-button" class="primary"></button></div>
   </div>
   <details class="activity" id="activity"><summary><span id="run-status">尚未开始</span><span id="event-count">工作记录</span></summary><ol id="events"></ol></details>
+  <div id="convert-bar" hidden><span>聊到想做的了？</span><button id="convert-start" type="button">🛠️ 开始制作 →</button></div>
   <div class="composer-meta"><button id="project-button" class="quiet">▱ 选择项目</button><button id="authorize" class="quiet"><span id="mode-label">Plan · 先聊想法</span>⌄</button><span id="permission-summary">尚未授权制作</span></div>
   <form id="composer"><div id="attachment-list"></div><label class="sr-only" for="prompt">你的想法或需求</label><textarea id="prompt" placeholder="先连接模型，选择项目，然后告诉我你的想法" rows="3" maxlength="20000"></textarea><div class="composer-actions"><label class="attach" for="attachments">＋ 添加材料</label><input id="attachments" type="file" accept="image/png,image/jpeg,image/webp,.txt,.md,.csv,.json" multiple hidden><button id="record" type="button" class="quiet">语音输入</button><span class="hint">Shift + Enter 换行</span><button id="stop" type="button" class="quiet" hidden>停止</button><button id="send" class="primary" type="submit">发送 ↑</button></div></form>
   <div class="privacy"><span id="composer-help">项目保存在本机；对话与选用材料发往你选择的模型服务。</span><span id="usage"></span></div>

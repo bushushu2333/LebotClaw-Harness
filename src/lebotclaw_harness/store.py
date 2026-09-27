@@ -40,6 +40,9 @@ class Store:
         ''')
         if self.db.execute("SELECT version FROM metadata").fetchone()[0] != 1:
             raise ValueError("数据库版本不受支持，请备份后升级。")
+        # v0.3: 会话区分聊天（无项目目录）与项目两种形态。
+        if 'kind' not in [r[1] for r in self.db.execute("PRAGMA table_info(sessions)")]:
+            self.db.execute("ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'project'")
         self.db.commit()
 
     def _event(self, sid, rid, kind, data):
@@ -50,16 +53,22 @@ class Store:
         with self.lock, self.db:
             self._event(sid, rid, kind, data)
 
-    def create(self, title="新任务", workspace=None):
+    def create(self, title="新任务", workspace=None, kind=None):
         sid = uid()
-        root = Path(workspace or self.home / "workspaces" / sid).expanduser().resolve()
-        # Avoid granting a tool the entire machine or the harness's own state.
-        if root == Path(root.anchor) or root == Path.home() or root == self.home or root in self.home.parents:
-            raise ValueError("请指定具体项目目录，不能选择根目录、用户主目录或运行数据目录。")
-        root.mkdir(parents=True, exist_ok=True)
+        chat = kind == 'chat'
+        if chat:
+            root = ''
+        else:
+            root = Path(workspace or self.home / "workspaces" / sid).expanduser().resolve()
+            # Avoid granting a tool the entire machine or the harness's own state.
+            if root == Path(root.anchor) or root == Path.home() or root == self.home or root in self.home.parents:
+                raise ValueError("请指定具体项目目录，不能选择根目录、用户主目录或运行数据目录。")
+            root.mkdir(parents=True, exist_ok=True)
+            root = str(root)
         with self.lock, self.db:
-            self.db.execute("INSERT INTO sessions VALUES(?,?,?,?,?)", (sid, title[:100], str(root), time.time(), time.time()))
-            self._event(sid, None, "session.created", {"workspace": str(root)})
+            self.db.execute("INSERT INTO sessions(id,title,workspace,created,updated,kind) VALUES(?,?,?,?,?,?)",
+                            (sid, title[:100], root, time.time(), time.time(), 'chat' if chat else 'project'))
+            self._event(sid, None, "session.created", {"workspace": root, "kind": 'chat' if chat else 'project'})
         return self.session(sid)
 
     def session(self, sid):

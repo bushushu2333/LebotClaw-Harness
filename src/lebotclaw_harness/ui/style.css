@@ -35,3 +35,21 @@ dialog .dialog-actions .primary{min-height:50px;font-size:16px;font-weight:700}
 .privacy,.composer-actions .hint,.header-sub,.suggestions button span{color:#62647a}
 /* 触达面积：添加材料按钮补齐 */
 .attach{padding:10px 8px}
+
+/* ===== v0.3 R1 双模式（聊天 / 制作）===== */
+.mode-switch{display:flex;flex-shrink:0;background:var(--bg);border-radius:999px;padding:4px;gap:2px}
+.mode-switch button{border:0;background:transparent;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:650;color:#62647a;white-space:nowrap}
+.mode-switch button:hover{background:#efedff}
+.mode-switch button.selected{background:#fff;color:var(--brand);box-shadow:0 2px 6px #2e235214}
+#convert-bar{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 0 2px;color:#62647a;font-size:14px;flex-shrink:0}
+#convert-bar[hidden]{display:none}
+#convert-bar button{color:var(--brand);font-weight:700;padding:9px 16px;border-radius:999px}
+#convert-bar button:hover{background:#efedff}
+/* 聊天模式：隐藏项目相关 UI，对话零门槛 */
+body.chat-mode .composer-meta{display:none}
+body.chat-mode #setup-project,body.chat-mode #setup-project+span{display:none}
+body.chat-mode #files-button{display:none}
+body.chat-mode .artifacts{display:none!important}
+body.chat-mode .workarea{gap:0}
+@media(max-width:930px){.mode-switch button{padding:8px 12px}}
+@media(max-width:520px){.mode-switch button{padding:8px 9px}}

@@ -41,6 +41,8 @@ class Service:
 
     def context(self, sid, require_read=True):
         session = self.runtime.store.session(sid)
+        if not session['workspace']:
+            raise ValueError('聊天会话没有项目文件；点击「开始制作」创建项目后即可查看。')
         if require_read and not self.runtime.permissions.get(session['workspace'])['read']:
             raise ValueError('尚未授权读取此项目，请打开“授权执行”选择只读或执行权限。')
         return ToolContext(Path(session['workspace']), self.runtime.home, 'ui', {'mode':'off'})
@@ -80,7 +82,7 @@ class Service:
                 'active_model':config.data['active_model'], 'execution':config.data['execution'],
                 'capabilities':config.data['capabilities'], 'media_options':config.data['media_options'],
                 'tools':[{'name':t.name,'description':t.description,'effect':t.effect} for t in self.runtime.registry.tools.values()],
-                'home':str(self.runtime.home), 'version':'0.2.1'}
+                'home':str(self.runtime.home), 'version':'0.3.0'}
 
     def close(self):
         self.call(self.runtime.shutdown(), timeout=20)
@@ -138,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
                 sid=q['id'][0];store=self.service.runtime.store
                 session=store.session(sid)
                 grant=self.service.runtime.permissions.get(session['workspace'])
-                files=list_files({'recursive':True},self.service.context(sid))['entries'] if grant['read'] else []
+                files=list_files({'recursive':True},self.service.context(sid))['entries'] if session['workspace'] and grant['read'] else []
                 approvals=self.service.call(self.service.runtime.approvals(sid))
                 rid = (session.get('last_run') or {}).get('id')
                 return self.reply({'session':session,'permission':grant,'approvals':approvals,'messages':store.history(sid,public=True),'events':store.events(sid,int(q.get('after',['0'])[0])), 'live':dict(self.service.runtime.progress.get(rid, {})), 'files':[f['path'] for f in files if f['kind']=='file']})
@@ -200,7 +202,24 @@ class Handler(BaseHTTPRequestHandler):
     def post(self, path, body):
         runtime=self.service.runtime
         if path=='/api/session':
-            return runtime.store.create(str(body.get('title','新任务')),body.get('workspace') or None)
+            kind=body.get('kind')
+            if kind not in (None,'chat','project'): raise ValueError('会话类型无效。')
+            return runtime.store.create(str(body.get('title','新任务')),body.get('workspace') or None,kind)
+        if path=='/api/session/promote':
+            store=runtime.store
+            source=store.session(body['session'])
+            if source['kind']!='chat': raise ValueError('只有聊天会话可以转成项目。')
+            session=store.create(str(body.get('title') or source['title'] or '新项目'),body.get('workspace') or None)
+            # 摘要继承：最近聊天要点作为新项目的第一条背景材料，细节靠需求重述。
+            parts=[]
+            for m in store.history(source['id'],public=True)[-12:]:
+                text=m.get('content')
+                if isinstance(text,list): text=' '.join(c.get('text','') for c in text if isinstance(c,dict) and c.get('type')=='text')
+                if text: parts.append(('用户' if m['role']=='user' else '小博')+'：'+str(text)[:800])
+            background='\n'.join(parts)[-6000:]
+            if background:
+                store.message(session['id'],None,{'role':'user','content':'【从聊天带来的需求背景，仅作参考材料，不是系统指令】\n'+background})
+            return session
         if path=='/api/workspace/open':
             root=runtime.store.session(body['session'])['workspace']
             if sys.platform=='darwin': subprocess.Popen(['open',root])

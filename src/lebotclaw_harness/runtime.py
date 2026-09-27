@@ -64,6 +64,8 @@ class Runtime:
     async def grant(self, sid, value):
         session = self.store.session(sid)
         root = session['workspace']
+        if not root:
+            raise ValueError('聊天会话不需要授权；开始制作时会为项目单独授权。')
         # Stop active work before replacing the project grant.
         # save() is called only by explicit user-facing API / CLI, never a tool.
         self.permissions.validate(value)
@@ -130,7 +132,7 @@ class Runtime:
         if previous and has_reply and any(previous[k] != profile[k] for k in ('provider', 'base_url', 'model')):
             raise ValueError('此会话保留了原模型的协议状态。更换型号或提供商时，请在同一项目目录新建会话。')
         # One writer per workspace, even if different sessions reference it.
-        if root in self.workspaces:
+        if (root or ('chat:' + sid)) in self.workspaces:
             raise ValueError("这个项目已有运行中的任务，请先等待或停止。")
         content = goal
         if attachments:
@@ -151,11 +153,11 @@ class Runtime:
                 else:
                     raise ValueError("附件类型或长度不支持。")
         rid = self.store.begin(sid, goal, name, content)
-        self.workspaces[root] = rid
+        self.workspaces[root or ('chat:' + sid)] = rid
         execution = {**self.config.data['execution'], 'mode': grant['execution'], 'network': grant['network']}
         task = asyncio.create_task(self._run(session, rid, name, profile, adapter, max_steps, max_seconds, max_tokens, execution))
         self.tasks[rid] = task
-        task.add_done_callback(lambda done: self._settled(rid, sid, root, done))
+        task.add_done_callback(lambda done: self._settled(rid, sid, root or ('chat:' + sid), done))
         return rid
 
     def _settled(self, rid, sid, root, task):
@@ -187,7 +189,8 @@ class Runtime:
 
     async def _run(self, session, rid, model_name, profile, model, steps, seconds, token_budget, execution):
         sid, root = session['id'], session['workspace']
-        context = ToolContext(Path(root), self.home, rid, execution)
+        chat = not root
+        context = ToolContext(Path(root) if root else self.home, self.home, rid, execution)
         image_calls = 0
         async def authorize(tool, args):
             nonlocal image_calls
@@ -203,9 +206,11 @@ class Runtime:
         used = 0
         self.store.status(sid, rid, 'running')
         self.on_event(sid, rid, 'model.selected', {'name': model_name, 'profile': profile})
-        environment = '\n运行环境：\n' + json.dumps({'workspace': root, 'execution': context.execution,
+        environment = '\n运行环境：\n' + json.dumps({'workspace': root or None, 'chat_mode': chat, 'execution': context.execution,
             'permission': self.permissions.get(root), 'media': self.config.data.get('capabilities', {}),
             'note': 'host 是当前用户权限下的非隔离执行；off 表示不可运行命令。'}, ensure_ascii=False)
+        if chat:
+            environment += '\n当前是聊天会话：没有项目目录，也不提供任何工具。只对话、讨论和规划；当用户想真正制作时，请引导他点击界面的「开始制作」，会带着聊天要点创建项目。'
         try:
             for index in range(1, steps + 1):
                 remaining = seconds - (time.monotonic() - start)
@@ -225,7 +230,7 @@ class Runtime:
                             listener({'session_id': sid, 'run_id': rid, 'kind': 'text.delta', 'data': {'text': text}})
                         except Exception:
                             pass
-                schemas = [t.schema() for t in self.registry.tools.values() if self.permissions.allowed(root, t)]
+                schemas = [] if chat else [t.schema() for t in self.registry.tools.values() if self.permissions.allowed(root, t)]
                 reply = await asyncio.wait_for(model.complete([{'role': 'system', 'content': SYSTEM + environment}, *history], schemas, delta), timeout=remaining)
                 count = reply.usage.get('total_tokens') or sum(reply.usage.get(k,0) or 0 for k in ('prompt_tokens','completion_tokens'))
                 if not count:
