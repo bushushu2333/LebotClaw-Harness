@@ -2,6 +2,7 @@
 import asyncio
 import json
 import re
+import urllib.request
 import httpx
 from dataclasses import dataclass
 from typing import Callable, Optional
@@ -9,6 +10,17 @@ from typing import Callable, Optional
 
 class ModelError(Exception):
     pass
+
+
+def proxy_hint():
+    """本应用默认直连（trust_env=False）；系统代理/VPN 的增强模式仍可能拦截流量，故障时给出提示。"""
+    try:
+        proxies = urllib.request.getproxies()
+    except Exception:
+        return ''
+    if any(proxies.get(k) for k in ('http', 'https', 'all')):
+        return '；检测到本机开启了系统代理，本应用默认直连不经过代理——若目标服务必须经代理访问，请在代理工具中为其配置规则；若连接的是本地服务（如 Ollama），代理的增强模式可能拦截请求，请尝试关闭'
+    return ''
 
 
 def validate_chat_endpoint(url):
@@ -67,10 +79,10 @@ class ChatModel:
         finish = None
         size = 0
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=15), follow_redirects=False) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=15), follow_redirects=False, trust_env=False) as client:
                 async with client.stream('POST', self.profile['base_url'] + '/chat/completions', headers=headers, json=body) as response:
                     if response.status_code >= 300:
-                        raise ModelError('模型接口返回 HTTP %s；请检查配置、额度和能力支持。' % response.status_code)
+                        raise ModelError('模型接口返回 HTTP %s；请检查配置、额度和能力支持%s。' % (response.status_code, proxy_hint()))
                     if 'text/event-stream' not in response.headers.get('content-type', ''):
                         raw = bytearray()
                         async for chunk in response.aiter_bytes():
@@ -126,7 +138,7 @@ class ChatModel:
         except ModelError:
             raise
         except (httpx.TimeoutException, httpx.NetworkError):
-            raise ModelError('模型网络连接失败或超时；本次没有执行不完整的工具请求。')
+            raise ModelError('模型网络连接失败或超时；本次没有执行不完整的工具请求%s。' % proxy_hint())
         except Exception:
             # Do not echo transport exceptions or raw provider responses (possible secrets).
             raise ModelError('无法解析模型响应；请检查接口协议和模型能力。')

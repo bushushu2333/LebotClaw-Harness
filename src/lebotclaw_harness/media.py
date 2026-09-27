@@ -8,14 +8,15 @@ import socket
 from urllib.parse import urlparse
 import httpx
 from .artifacts import save_artifact
+from .model import proxy_hint
 
 
 async def bounded_request(method, url, headers=None, **kwargs):
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=15), follow_redirects=False) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=15), follow_redirects=False, trust_env=False) as client:
             async with client.stream(method, url, headers=headers or {}, **kwargs) as response:
                 if response.status_code >= 300:
-                    raise ValueError('服务返回 HTTP %s，请检查模型、协议及额度；未自动重试。' % response.status_code)
+                    raise ValueError('服务返回 HTTP %s，请检查模型、协议及额度%s；未自动重试。' % (response.status_code, proxy_hint()))
                 raw = bytearray()
                 async for chunk in response.aiter_bytes():
                     raw.extend(chunk)
@@ -23,7 +24,7 @@ async def bounded_request(method, url, headers=None, **kwargs):
                         raise ValueError('服务返回的内容超过 28 MB。')
                 return bytes(raw)
     except httpx.HTTPError:
-        raise ValueError('服务连接失败或超时。上游请求可能已产生用量；请核对后再生成，系统未自动重试。')
+        raise ValueError('服务连接失败或超时%s。上游请求可能已产生用量；请核对后再生成，系统未自动重试。' % proxy_hint())
 
 
 async def download_image(url):
@@ -47,10 +48,10 @@ async def dashscope_images(url, headers, model, prompt, options):
             'parameters':{'enable_interleave':True, 'stream':True}, 'size':options.get('size') or '1024x1024'}
     urls, usage, length = [], {}, 0
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(240,connect=15),follow_redirects=False) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(240,connect=15),follow_redirects=False,trust_env=False) as client:
             async with client.stream('POST',url,headers={**headers,'x-dashscope-sse':'enable'},json=body) as response:
                 if response.status_code >= 300:
-                    raise ValueError('生图服务返回 HTTP %s；未自动重试。' % response.status_code)
+                    raise ValueError('生图服务返回 HTTP %s%s；未自动重试。' % (response.status_code, proxy_hint()))
                 async for line in response.aiter_lines():
                     length += len(line)
                     if length > 2_000_000: raise ValueError('生图事件流过大。')
