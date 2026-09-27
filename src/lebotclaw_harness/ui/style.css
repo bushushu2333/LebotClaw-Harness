@@ -19,3 +19,19 @@ body{background:#fff}.sidebar{background:#f8f8fc;padding:26px 18px 16px;gap:26px
 #mobile-menu{display:none}#mobile-sessions{display:flex;flex-direction:column;gap:8px}#mobile-sessions button{text-align:left}#mobile-sessions button.selected{color:var(--brand);background:var(--soft)}@media(max-width:930px){#mobile-menu{display:block;padding:6px;font-size:17px}header>div{min-width:50px}}
 
 .preview-link{text-decoration:none;padding:6px 8px;border-radius:8px;color:var(--brand);font-size:12px;white-space:nowrap}.preview-link:hover{background:var(--soft)}.panel-heading #download-project{font-size:12px;padding:6px 8px}
+
+/* ===== v0.3 P0 视觉红线修复（对齐 LebotWorld 组件库 V1.1，追加层覆盖旧值）===== */
+/* 主按钮统一：50px 高 / 15px 圆角 / 16px-700 / 135° 三色品牌渐变 */
+.primary{min-height:50px;border-radius:15px;background:linear-gradient(135deg,#6657f4,#574be8,#548bf5);font-size:16px;font-weight:700;padding:12px 22px}
+.primary:hover{background:linear-gradient(135deg,#5c4ee6,#4e41d4,#4b7fe6)}
+.composer-actions .primary{min-width:50px;min-height:50px;border-radius:15px;font-size:16px;font-weight:700}
+dialog .dialog-actions .primary{min-height:50px;font-size:16px;font-weight:700}
+.approval-card .primary{min-height:50px}
+/* 状态 chip 胶囊化 */
+.badge{border-radius:999px;padding:6px 13px}
+/* 字号红线：11–13px 一律提到 14px（eyebrow 等 Caption 保留 12px/600） */
+.brand b,.side-bottom p,.side-label,.header-sub,.model-pill,#files-button,.setup-strip,.setup-strip button,.suggestions button,.message.has-tools small,.composer-meta button,.composer-meta>span,.composer-actions .hint,.attach,#record,.privacy,.activity>summary,.activity ol,.activity details,.activity pre,.live .byline span,.next-action p,.next-action button,.run-error button,.approval-card p,.approval-card pre,.panel-heading span,.location-details,.location-details .workspace,.location-details button,.files button,.preview-toolbar>span,.preview-toolbar button,.empty,.callout,.lebotapi,.lebotapi p,.lebotapi small,dialog label,dialog .helper,dialog .tabs button,dialog details>summary,#notice,#folder-current,#folder-list button,.preview-link,.panel-heading #download-project{font-size:14px}
+/* 对比度：四组不达标文字（隐私说明/输入提示/顶栏副标题/建议卡箭头）统一提到 ≥4.5:1 */
+.privacy,.composer-actions .hint,.header-sub,.suggestions button span{color:#62647a}
+/* 触达面积：添加材料按钮补齐 */
+.attach{padding:10px 8px}
