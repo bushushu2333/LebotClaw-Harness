@@ -87,7 +87,7 @@ class ChatModel:
                         raw = bytearray()
                         async for chunk in response.aiter_bytes():
                             raw.extend(chunk)
-                            if len(raw) > 2_000_000:
+                            if len(raw) > 8_000_000:
                                 raise ModelError('模型响应过大。')
                         data = json.loads(raw)
                         provider_error(data)
@@ -97,7 +97,7 @@ class ChatModel:
                         return self.validate(choice['message'], data.get('usage') or {}, choice.get('finish_reason'))
                     async for line in response.aiter_lines():
                         size += len(line)
-                        if size > 2_000_000:
+                        if size > 8_000_000:
                             raise ModelError('模型响应超出本次限制。')
                         if not line.startswith('data:'):
                             continue
@@ -145,6 +145,8 @@ class ChatModel:
 
     @staticmethod
     def validate(message, usage, finish):
+        if finish == 'length':
+            raise ModelError('模型输出达到单次最大 token 上限被截断，未执行其中的工具。请在模型设置的「图片理解与高级设置」中调大“单次最大输出 token”，或将任务拆小后重试。')
         if finish not in ('stop', 'tool_calls', 'function_call'):
             raise ModelError('模型输出未完整结束，未执行其中的工具。结束原因：' + str(finish))
         filtered = {k: v for k, v in message.items() if k in ('role', 'content', 'tool_calls', 'reasoning_content')}

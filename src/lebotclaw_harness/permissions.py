@@ -92,7 +92,7 @@ class Permissions:
 
     async def check(self, sid, rid, workspace, tool, args):
         if not self.allowed(workspace, tool):
-            raise ValueError('PERMISSION_REQUIRED：此操作未授权。请用户在“授权执行”中调整；模型不能自行授权。')
+            raise ValueError('PERMISSION_REQUIRED：此操作未授权（授权可能已过期或被撤销）。请停止当前制作，明确告知用户需要在“授权执行”中重新授权；不要尝试其他工具绕过，不要继续执行，也不要声称工作已完成。')
         grant = self.get(workspace)
         # Isolated routine commands may run in auto. Unconfined host commands
         # and chargeable image requests remain reviewable in auto mode.

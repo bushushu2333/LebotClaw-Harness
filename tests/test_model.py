@@ -12,12 +12,12 @@ def test_streamed_arguments_reasoning_and_text(serve_model):
         assert result.usage['total_tokens']==12
 
 
-@pytest.mark.parametrize('finish',['length',None])
-def test_incomplete_model_output_is_rejected(serve_model,finish):
+@pytest.mark.parametrize('finish,match',[('length','截断'),(None,'未完整结束')])
+def test_incomplete_model_output_is_rejected(serve_model,finish,match):
     response=sse(tool_reply('file_write',{'path':'never','content':'bad'}),finish='length')
     if finish is None:response=(200,response[1],response[2].replace('"finish_reason": "length"','"finish_reason": null'))
     with serve_model(lambda *_:response) as (endpoint,_):
-        with pytest.raises(ModelError,match='未完整结束'):
+        with pytest.raises(ModelError,match=match):
             asyncio.run(ChatModel({'model':'test','base_url':endpoint}).complete([],[]))
 
 
