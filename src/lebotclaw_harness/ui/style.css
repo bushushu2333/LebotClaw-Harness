@@ -131,3 +131,23 @@ body.chat-mode .workarea{gap:0}
 .log-row summary{cursor:pointer;color:#62647a;font-size:13px}
 .log-row pre{overflow:auto;max-height:220px;white-space:pre-wrap;overflow-wrap:anywhere;background:#f8f7fc;padding:10px;border-radius:8px;font-size:13px}
 @media(max-width:930px){#file-tree{width:170px}}
+
+/* ===== v0.3 布局修复（HP 实机反馈）===== */
+/* 顶栏模式切换器：不被 header>div 的 flex:1 拉伸 */
+.mode-switch{flex:0 0 auto}
+/* 窄屏面板头部：允许换行、文字不挤压变形 */
+.panel-heading{flex-wrap:wrap;row-gap:6px}
+.panel-heading #file-count{white-space:nowrap}
+#download-project{white-space:nowrap}
+/* 窄屏工作台：页签横向滚动，不溢出截断 */
+.work-tabs{overflow-x:auto;flex-shrink:0}
+.work-tabs button{flex-shrink:0}
+/* next-action 卡片窄屏：文字区可收缩，按钮不挤没文字 */
+.next-action{flex-wrap:wrap}
+.next-action>div{min-width:0;flex:1 1 240px}
+.next-action b{display:block}
+.next-action button{flex-shrink:0;margin-left:auto}
+@media(max-width:1150px){
+  #file-tree{width:170px}
+  .panel-heading{padding:10px 14px 8px}
+}

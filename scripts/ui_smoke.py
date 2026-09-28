@@ -4,7 +4,7 @@ sys.path.insert(0, 'src')
 from playwright.sync_api import sync_playwright
 
 HOME = '/tmp/lh-uitest'
-PORT = 18941
+PORT = 18991
 import shutil; shutil.rmtree(HOME, ignore_errors=True)
 
 env = dict(os.environ, LEBOTCLAW_HOME=HOME, PYTHONPATH='src')
