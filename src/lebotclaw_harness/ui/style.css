@@ -151,3 +151,11 @@ body.chat-mode .workarea{gap:0}
   #file-tree{width:170px}
   .panel-heading{padding:10px 14px 8px}
 }
+
+/* ===== v0.3.1 弹窗长表单修复（1440x900 实测：模型设置内容约 950px 超 90vh=810px，保存按钮掉出折叠线且 macOS 悬浮滚动条不可见）===== */
+/* 操作行在弹窗内吸底：主按钮永远可达 */
+dialog .dialog-actions{position:sticky;bottom:0;background:#fff;padding-top:12px;margin-top:14px;z-index:1}
+/* 弹窗内显示细滚动条：内容能滚一目了然 */
+dialog::-webkit-scrollbar{width:8px}
+dialog::-webkit-scrollbar-thumb{background:#d9d5f2;border:2px solid #fff;border-radius:4px}
+
