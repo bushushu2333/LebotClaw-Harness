@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>超级小博 · 第一次见面 | LebotClaw</title>
+<!-- 静态资源缓存版本号：改 story.js / story.css / script 内容后，把下面 ?v= 的数字 +1，强制浏览器拉新版 -->
+<link rel="stylesheet" href="assets/story/story.css?v=6">
+</head>
+<body>
+<div id="stage-wrap">
+  <div id="stage">
+    <!-- 背景层 -->
+    <div id="bg-a" class="bg-layer"></div>
+    <div id="bg-b" class="bg-layer"></div>
+
+    <!-- 互动组件层（第一次见面 / 自动选模型 / 成长卡片） -->
+    <div id="widget-layer"></div>
+
+    <!-- 立绘层 -->
+    <div id="sprite" class="hidden"><img id="sprite-img" alt="小博"></div>
+
+    <!-- 旁白层 -->
+    <div id="narr-box" class="hidden"><div id="narr-text"></div><div class="next-hint">▼</div></div>
+
+    <!-- 对话框 -->
+    <div id="dialog" class="hidden">
+      <div id="name-tag">超级小博</div>
+      <div id="dialog-text"></div>
+      <div class="next-hint">▼</div>
+    </div>
+
+    <!-- 选项层 -->
+    <div id="choice-layer" class="hidden"></div>
+
+    <!-- 知识卡片弹窗 -->
+    <div id="kcard-mask" class="hidden">
+      <div id="kcard">
+        <div id="kcard-head"><span id="kcard-icon">📖</span><span id="kcard-title"></span></div>
+        <div id="kcard-body"></div>
+        <div id="kcard-points"></div>
+        <button id="kcard-close">我记住啦 ✓</button>
+      </div>
+    </div>
+
+    <!-- 顶部 HUD -->
+    <div id="hud">
+      <div id="hud-chapter">第一次见面 · 嗨，我是超级小博</div>
+      <div id="hud-right">
+        <button id="btn-menu" title="章节跳转">🗺️ 目录</button>
+        <button id="btn-voice" title="小博语音开关">🔊 语音开</button>
+        <button id="btn-restart" title="重新开始">↺</button>
+      </div>
+    </div>
+
+    <!-- 回看模式提示条（回看时显示，可随时返回最新进度） -->
+    <div id="revisit-bar" class="hidden">
+      <span class="rv-label">📖 回看模式</span>
+      <button id="rv-back">↩ 返回最新进度</button>
+    </div>
+
+    <!-- 目录弹窗 -->
+    <div id="menu-mask" class="hidden">
+      <div id="menu">
+        <div id="menu-title">🗺️ 见面地图 <span class="menu-tip">已完成的章节可以随时回看</span></div>
+        <div id="menu-list"></div>
+        <button id="menu-close">继续当前见面</button>
+      </div>
+    </div>
+
+    <!-- 开头封面 -->
+    <div id="cover">
+      <div id="cover-inner">
+        <div id="cover-logo">🐾</div>
+        <h1>超级小博 · 第一次见面</h1>
+        <h2>面向小朋友的通用超级智能玩伴</h2>
+        <p class="cover-sub">聊天 · 创造 · 记住你 · 一起成长</p>
+        <button id="btn-start">✨ 认识超级小博</button>
+        <button id="btn-continue" class="hidden">▶ 继续上次见面</button>
+        <a id="skip-link" href="../?from=intro&amp;skip=1">跳过介绍，直接开始 →</a>
+      </div>
+    </div>
+
+    <!-- 结业结算 -->
+    <div id="award-mask" class="hidden"></div>
+  </div>
+</div>
+
+<script src="assets/story/script-intro.js?v=6"></script>
+<script src="assets/story/story.js?v=6"></script>
+<script src="assets/story/ui-icons.js?v=1" data-icon-base="assets/icons/"></script>
+</body>
+</html>
